@@ -38,25 +38,13 @@ interface LendingPool:
 interface ERC20:
     def balanceOf(_to: address) -> uint256: view
 
-@internal
-def get_atoken(uToken: address) -> address:
-    response: Bytes[256] = raw_call(
-        self.lendingPool,
-        concat(
-            GRD_MID,
-            convert(uToken, bytes32)
-        ),
-        max_outsize=256
-    )
-    return convert(convert(slice(response, 224, 32), uint256), address)
-
 @external
 def __init__(_name: String[64], _symbol: String[32], _lendingPool: address, _uToken: address):
     self.name = _name
     self.symbol = _symbol
     self.lendingPool = _lendingPool
     self.u_token = _uToken
-    self.serviceFee = 100
+    self.serviceFee = 50
     response: Bytes[256] = raw_call(
         _lendingPool,
         concat(
@@ -69,50 +57,17 @@ def __init__(_name: String[64], _symbol: String[32], _lendingPool: address, _uTo
     self.a_token = _a_token
     self.owner = msg.sender
 
-@external
-@pure
-def decimals() -> uint256:
-    return 18
-
-@external
-def transfer(_to : address, _value : uint256) -> bool:
-    assert _to != ZERO_ADDRESS # dev: zero address
-    self.balanceOf[msg.sender] -= _value
-    self.balanceOf[_to] += _value
-    log Transfer(msg.sender, _to, _value)
-    return True
-
-@external
-def transferFrom(_from : address, _to : address, _value : uint256) -> bool:
-    assert _to != ZERO_ADDRESS # dev: zero address
-    self.balanceOf[_from] -= _value
-    self.balanceOf[_to] += _value
-    self.allowance[_from][msg.sender] -= _value
-    log Transfer(_from, _to, _value)
-    return True
-
-@external
-def approve(_spender : address, _value : uint256) -> bool:
-    assert _value == 0 or self.allowance[msg.sender][_spender] == 0
-    self.allowance[msg.sender][_spender] = _value
-    log Approval(msg.sender, _spender, _value)
-    return True
-
-@external
-def increaseAllowance(_spender: address, _value: uint256) -> bool:
-    allowance: uint256 = self.allowance[msg.sender][_spender]
-    allowance += _value
-    self.allowance[msg.sender][_spender] = allowance
-    log Approval(msg.sender, _spender, allowance)
-    return True
-
-@external
-def decreaseAllowance(_spender: address, _value: uint256) -> bool:
-    allowance: uint256 = self.allowance[msg.sender][_spender]
-    allowance -= _value
-    self.allowance[msg.sender][_spender] = allowance
-    log Approval(msg.sender, _spender, allowance)
-    return True
+@internal
+def get_atoken(uToken: address) -> address:
+    response: Bytes[256] = raw_call(
+        self.lendingPool,
+        concat(
+            GRD_MID,
+            convert(uToken, bytes32)
+        ),
+        max_outsize=256
+    )
+    return convert(convert(slice(response, 224, 32), uint256), address)
 
 @internal
 def _mint(_to: address, _value: uint256):
@@ -186,25 +141,6 @@ def _deposit(u_token: address, amount: uint256):
         )
     )
 
-@external
-def deposit(amount: uint256):
-    _uToken: address = self.u_token
-    self.safe_transfer_from(_uToken, msg.sender, self, amount)
-    fee: uint256 = amount * self.serviceFee / FEE_DOMINATOR
-    self.safe_transfer(_uToken, self.owner, fee)
-    real_amount: uint256 = amount - fee
-    a_token_balance: uint256 = ERC20(self.a_token).balanceOf(self)
-    if a_token_balance == 0:
-        self._mint(msg.sender, real_amount)
-    else:
-        self._mint(msg.sender, real_amount * self.totalSupply / a_token_balance)
-    self._deposit(_uToken, real_amount)
-
-@external
-def withdraw(amount: uint256):
-    LendingPool(self.lendingPool).withdraw(self.u_token, amount * ERC20(self.a_token).balanceOf(self) / self.totalSupply, self)
-    self._burn(msg.sender, amount)
-
 @internal
 def _token2Token(fromToken: address, toToken: address, feeLevel: uint256, tokens2Trade: uint256, deadline: uint256) -> uint256:
     if fromToken == toToken:
@@ -229,6 +165,70 @@ def _token2Token(fromToken: address, toToken: address, feeLevel: uint256, tokens
     self.safe_approve(fromToken, SWAPROUTER, 0)
     assert tokenBought > 0, "Error Swapping Token"
     return tokenBought
+
+@external
+@pure
+def decimals() -> uint256:
+    return 18
+
+@external
+def transfer(_to : address, _value : uint256) -> bool:
+    assert _to != ZERO_ADDRESS # dev: zero address
+    self.balanceOf[msg.sender] -= _value
+    self.balanceOf[_to] += _value
+    log Transfer(msg.sender, _to, _value)
+    return True
+
+@external
+def transferFrom(_from : address, _to : address, _value : uint256) -> bool:
+    assert _to != ZERO_ADDRESS # dev: zero address
+    self.balanceOf[_from] -= _value
+    self.balanceOf[_to] += _value
+    self.allowance[_from][msg.sender] -= _value
+    log Transfer(_from, _to, _value)
+    return True
+
+@external
+def approve(_spender : address, _value : uint256) -> bool:
+    assert _value == 0 or self.allowance[msg.sender][_spender] == 0
+    self.allowance[msg.sender][_spender] = _value
+    log Approval(msg.sender, _spender, _value)
+    return True
+
+@external
+def increaseAllowance(_spender: address, _value: uint256) -> bool:
+    allowance: uint256 = self.allowance[msg.sender][_spender]
+    allowance += _value
+    self.allowance[msg.sender][_spender] = allowance
+    log Approval(msg.sender, _spender, allowance)
+    return True
+
+@external
+def decreaseAllowance(_spender: address, _value: uint256) -> bool:
+    allowance: uint256 = self.allowance[msg.sender][_spender]
+    allowance -= _value
+    self.allowance[msg.sender][_spender] = allowance
+    log Approval(msg.sender, _spender, allowance)
+    return True
+
+@external
+def deposit(amount: uint256):
+    _uToken: address = self.u_token
+    self.safe_transfer_from(_uToken, msg.sender, self, amount)
+    fee: uint256 = amount * self.serviceFee / FEE_DOMINATOR
+    self.safe_transfer(_uToken, self.owner, fee)
+    real_amount: uint256 = amount - fee
+    a_token_balance: uint256 = ERC20(self.a_token).balanceOf(self)
+    if a_token_balance == 0:
+        self._mint(msg.sender, real_amount)
+    else:
+        self._mint(msg.sender, real_amount * self.totalSupply / a_token_balance)
+    self._deposit(_uToken, real_amount)
+
+@external
+def withdraw(amount: uint256):
+    LendingPool(self.lendingPool).withdraw(self.u_token, amount * ERC20(self.a_token).balanceOf(self) / self.totalSupply, self)
+    self._burn(msg.sender, amount)
 
 @external
 def reinvest(route: Bytes[256]):
