@@ -1,4 +1,4 @@
-# @version ^0.2.16
+# @version 0.3.0
 
 event Transfer:
     _from: indexed(address)
@@ -231,11 +231,12 @@ def withdraw(amount: uint256):
     self._burn(msg.sender, amount)
 
 @external
-def reinvest(route: Bytes[256]):
+def reinvest(route: Bytes[256], minPrice: uint256):
     assert msg.sender == self.owner
     _lendingPool: address = self.lendingPool
     _a_token: address = self.a_token
     amount: uint256 = ERC20(_a_token).balanceOf(self)
+    old_amount: uint256 = amount
     _uToken: address = self.u_token
     self.safe_approve(_a_token, _lendingPool, amount)
     LendingPool(_lendingPool).withdraw(_uToken, amount, self)
@@ -248,6 +249,7 @@ def reinvest(route: Bytes[256]):
         amount = self._token2Token(_uToken, uToken, feeLevel, amount, block.timestamp)
         _uToken = uToken
     self._deposit(_uToken, amount)
+    assert old_amount * minPrice <= amount * 10 ** 18, "High Slippage"
     self.u_token = _uToken
     self.a_token = self.get_atoken(_uToken)
 

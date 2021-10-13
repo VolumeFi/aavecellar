@@ -39,7 +39,7 @@ brownie test --network local
 
 ### Reinvest
 ```
-function reinvest(Bytes[256] route)
+function reinvest(Bytes[256] route, uint256 minPrice)
 ```
 
 `route` is swap route by UniswapV3. The last effective token is the new asset.
@@ -56,3 +56,10 @@ The meaning of route bytes are as follows.
 | 160 - 191 | Fee level of Uniswap V3 from `Token1` to `Token2` |
 | 192 - 223 | `Token3` or all below `0` if `Token2` is the new asset token |
 | 224 - 255 | Fee level of Uniswap V3 from `Token2` to `Token3` |
+
+`minPrice` is a limit of the ratio of the new token amount to the old token amount in 18 decimal digits.
+For example, if the old token is USDC and the new token is WETH, WETH price is 1000USD/WETH at that time, 6 decimal digits for USDC, 18 decimal digits for WETH, 5% slippage, `minPrice` is as follows.
+
+```
+minPrice = 10 ** 18 / (1000 * 10 ** 6) * (95 / 100) * 10 ** 18
+```
