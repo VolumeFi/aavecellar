@@ -21,6 +21,7 @@ u_token: public(address)
 a_token: public(address)
 lendingPool: public(address)
 owner: public(address)
+validator: public(HashMap[address, bool])
 serviceFee: public(uint256)
 
 APPROVE_MID: constant(Bytes[4]) = method_id("approve(address,uint256)")
@@ -56,6 +57,7 @@ def __init__(_name: String[64], _symbol: String[32], _lendingPool: address, _uTo
     _a_token: address = convert(convert(slice(response, 224, 32), uint256), address)
     self.a_token = _a_token
     self.owner = msg.sender
+    self.validator[msg.sender] = True
 
 @internal
 def get_atoken(uToken: address) -> address:
@@ -232,7 +234,7 @@ def withdraw(amount: uint256):
 
 @external
 def reinvest(route: Bytes[256], minPrice: uint256):
-    assert msg.sender == self.owner
+    assert self.validator[msg.sender], "Not validator"
     _lendingPool: address = self.lendingPool
     _a_token: address = self.a_token
     amount: uint256 = ERC20(_a_token).balanceOf(self)
@@ -252,6 +254,17 @@ def reinvest(route: Bytes[256], minPrice: uint256):
     assert old_amount * minPrice <= amount * 10 ** 18, "High Slippage"
     self.u_token = _uToken
     self.a_token = self.get_atoken(_uToken)
+
+@external
+def transferOwnership(_owner: address):
+    assert msg.sender == self.owner
+    assert _owner != ZERO_ADDRESS
+    self.owner = _owner
+
+@external
+def setValidator(_validator: address, _value: bool):
+    assert msg.sender == self.owner
+    self.validator[_validator] = _value
 
 @external
 def setLendingPool(_lendingPool: address):
