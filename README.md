@@ -37,7 +37,36 @@ brownie run scripts/deploy.py --network mainnet
 brownie test --network local
 ```
 
+## External functions
+
+| Function Name     | Parameters                                 | Note | Description                                                  |
+| ----------------- | ------------------------------------------ | ---- | ------------------------------------------------------------ |
+| transfer          | address _to, uint256 _value                |      |                                                              |
+| approve           | address _spender, uint256 _value           |      |                                                              |
+| transferFrom      | address _from, address _to, uint256 _value |      |                                                              |
+| increaseAllowance | addresss _spender, uint256 _value          |      | Increase allowance                                           |
+| decreaseAllowance | address _spender, uint256 _value           |      | Decrease allowance                                           |
+| deposit           | uint256 amount                             |      | Deposit `u_token` by `u_token` balance                       |
+| withdraw          | uint256 amount                             |      | Withdraw `u_token` by cellar balance                         |
+| reinvest *        | Bytes[256] route, uint256 minPrice         |      | Withdraw all `u_token` and swap into new `u_token`, reinvest. |
+| setValidator      | address _validator, bool value             |      |                                                              |
+| transferOwnership | address, newOwner                          |      |                                                              |
+| setLendingPool    | addresss _lendingPool                      |      | Update lendingPool address                                   |
+| owner             |                                            | view |                                                              |
+| name              |                                            | view |                                                              |
+| symbol            |                                            | view |                                                              |
+| decimals          |                                            | pure |                                                              |
+| totalSupply       |                                            | view |                                                              |
+| balanceOf         | address account                            | view |                                                              |
+| allowance         | address owner_, address spender            | view |                                                              |
+| lendingPool       |                                            | view | Address of lending pool of AAVE protocol                     |
+| lp_balance        |                                            | view | crv3crypto LP balance                                        |
+| validator         | address                                    | view | Validator check (bool)                                       |
+
+
+
 ### Reinvest
+
 ```
 function reinvest(Bytes[256] route, uint256 minPrice)
 ```
@@ -46,16 +75,16 @@ function reinvest(Bytes[256] route, uint256 minPrice)
 
 The meaning of route bytes are as follows.
 
-| Offset(Byte) | Route Data Meaning |
-| - | - |
-| 0 - 31 | `Token0` |
-| 32 - 63 | Fee level of Uniswap V3 from original asset token to `Token0` |
-| 64 - 95 | `Token1` or all below `0` if `Token0` is the new asset token |
-| 96 - 127 | Fee level of Uniswap V3 from `Token0` to `Token1` |
-| 128 - 159 | `Token2` or all below `0` if `Token1` is the new asset token |
-| 160 - 191 | Fee level of Uniswap V3 from `Token1` to `Token2` |
-| 192 - 223 | `Token3` or all below `0` if `Token2` is the new asset token |
-| 224 - 255 | Fee level of Uniswap V3 from `Token2` to `Token3` |
+| Offset(Byte) | Route Data Meaning                                           |
+| ------------ | ------------------------------------------------------------ |
+| 0 - 31       | `Token0`                                                     |
+| 32 - 63      | Fee level of Uniswap V3 from original asset token to `Token0` |
+| 64 - 95      | `Token1` or all below `0` if `Token0` is the new asset token |
+| 96 - 127     | Fee level of Uniswap V3 from `Token0` to `Token1`            |
+| 128 - 159    | `Token2` or all below `0` if `Token1` is the new asset token |
+| 160 - 191    | Fee level of Uniswap V3 from `Token1` to `Token2`            |
+| 192 - 223    | `Token3` or all below `0` if `Token2` is the new asset token |
+| 224 - 255    | Fee level of Uniswap V3 from `Token2` to `Token3`            |
 
 `minPrice` is a limit of the ratio of the new token amount to the old token amount in 18 decimal digits.
 For example, if the old token is USDC and the new token is WETH, WETH price is 1000USD/WETH at that time, 6 decimal digits for USDC, 18 decimal digits for WETH, 5% slippage, `minPrice` is as follows.
