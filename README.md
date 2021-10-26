@@ -49,6 +49,7 @@ brownie test --network local
 | deposit           | uint256 amount                             |      | Deposit `u_token` by `u_token` balance                       |
 | withdraw          | uint256 amount                             |      | Withdraw `u_token` by cellar balance                         |
 | reinvest *        | Bytes[256] route, uint256 minPrice         |      | Withdraw all `u_token` and swap into new `u_token`, reinvest. |
+| harvest           | uint256 minPrice                           |      | Collect stkAAVE reward and Convert it into `u_token`, reinvest. |
 | setValidator      | address _validator, bool value             |      |                                                              |
 | transferOwnership | address, newOwner                          |      |                                                              |
 | setLendingPool    | addresss _lendingPool                      |      | Update lendingPool address                                   |

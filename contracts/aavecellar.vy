@@ -22,6 +22,7 @@ a_token: public(address)
 lendingPool: public(address)
 owner: public(address)
 validator: public(HashMap[address, bool])
+adjuster: public(HashMap[address, bool])
 serviceFee: public(uint256)
 
 APPROVE_MID: constant(Bytes[4]) = method_id("approve(address,uint256)")
@@ -30,7 +31,12 @@ TRANSFERFROM_MID: constant(Bytes[4]) = method_id("transferFrom(address,address,u
 DEPOSIT_MID: constant(Bytes[4]) = method_id("deposit(address,uint256,address,uint16)")
 GRD_MID: constant(Bytes[4]) = method_id("getReserveData(address)")
 EIS_MID: constant(Bytes[4]) = method_id("exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160))")
+CR_MID: constant(Bytes[4]) = method_id("claimRewards(address[],uint256,address)")
 SWAPROUTER: constant(address) = 0xE592427A0AEce92De3Edee1F18E0157C05861564
+INCENTIVES_CONTROLLER: constant(address) = 0xd784927Ff2f95ba542BfC824c8a8a98F3495f6b5
+stkAAVE: constant(address) = 0x4da27a545c0c5B758a6BA100e3a049001de870f5
+AAVE: constant(address) = 0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9
+WETH: constant(address) = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
 FEE_DOMINATOR: constant(uint256) = 10000
 
 interface LendingPool:
@@ -58,6 +64,7 @@ def __init__(_name: String[64], _symbol: String[32], _lendingPool: address, _uTo
     self.a_token = _a_token
     self.owner = msg.sender
     self.validator[msg.sender] = True
+    self.adjuster[msg.sender] = True
 
 @internal
 def get_atoken(uToken: address) -> address:
@@ -256,6 +263,28 @@ def reinvest(route: Bytes[256], minPrice: uint256):
     self.a_token = self.get_atoken(_uToken)
 
 @external
+def harvest(minPrice: uint256):
+    assert self.adjuster[msg.sender], "Not adjuster"
+    _response: Bytes[32] = raw_call(
+        INCENTIVES_CONTROLLER,
+        concat(
+            CR_MID,
+            convert(96, bytes32),
+            convert(MAX_UINT256, bytes32),
+            convert(self, bytes32),
+            convert(0, bytes32)
+        ),
+        max_outsize=32
+    )
+    claimed: uint256 = convert(_response, uint256)
+    amount: uint256 = self._token2Token(stkAAVE, AAVE, 500, claimed, block.timestamp)
+    amount = self._token2Token(AAVE, WETH, 3000, amount, block.timestamp)
+    _uToken: address = self.u_token
+    amount = self._token2Token(WETH, _uToken, 3000, amount, block.timestamp)
+    assert claimed * minPrice <= amount * 10 ** 18, "High Slippage"
+    self._deposit(_uToken, ERC20(_uToken).balanceOf(self))
+
+@external
 def transferOwnership(_owner: address):
     assert msg.sender == self.owner
     assert _owner != ZERO_ADDRESS
@@ -265,6 +294,11 @@ def transferOwnership(_owner: address):
 def setValidator(_validator: address, _value: bool):
     assert msg.sender == self.owner
     self.validator[_validator] = _value
+
+@external
+def setAdjuster(_adjuster: address, _value: bool):
+    assert msg.sender == self.owner
+    self.adjuster[_adjuster] = _value
 
 @external
 def setLendingPool(_lendingPool: address):
